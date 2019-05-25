@@ -1013,7 +1013,7 @@ void CLianXi2View::OnFilesave()
 {
 	// TODO: 在此添加命令处理程序代码
 	Invalidate(FALSE); 
-	CClientDC dc(this);
+	CClientDC dc(this);     
 	CRect rect;
 	BOOL  showMsgTag;                  //是否要弹出”图像保存成功对话框" 
 	GetClientRect(&rect);                  //获取画布大小
