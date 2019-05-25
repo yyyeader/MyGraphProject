@@ -1012,7 +1012,7 @@ void CLianXi2View::ShowBitmap(CDC *pDC, CString BmpName)
 void CLianXi2View::OnFilesave()
 {
 	// TODO: 在此添加命令处理程序代码
-	Invalidate(FALSE);
+	Invalidate(FALSE); 
 	CClientDC dc(this);
 	CRect rect;
 	BOOL  showMsgTag;                  //是否要弹出”图像保存成功对话框" 
