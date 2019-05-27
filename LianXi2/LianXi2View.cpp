@@ -221,6 +221,16 @@ double DistanceToSegment(CPoint P, CPoint A, CPoint B) {
 	else return fabs(Cross(v1, v2)) / Length(v1);
 }
 
+//判断点是否选中
+bool CheckSelect(MyPoint point, int x, int y) {
+	CPoint P(x, y);
+	CPoint A=point.getCenter();
+	if (dist(P,A)<=min(5,3*Mwidth)){
+		return true;
+	}
+	return false;
+}
+
 //判断线段是否选中
 bool CheckSelect(MyLine line,int x,int y) {
 	
@@ -253,6 +263,20 @@ bool CheckSelect(MyPolygon poly, int x, int y) {
 	return false;
 }
 
+//判断贝塞尔曲线是否选中
+bool CheckSelect(MyBesizer besizer, int x, int y) {
+	CPoint P(x, y);
+	vector<CPoint>points = besizer.getPoints();
+	int size = points.size();
+	for (int i = 0; i < size; i++) {
+		CPoint A = points[i];
+		if (dist(P, A) <= min(5, Mwidth * 3)) {
+			return true;
+		}
+	}
+	return false;
+}
+
 //确定鼠标点击的点是否选中对象
 void CLianXi2View::FindSelect(CPoint point) {
 	CLianXi2Doc* pDoc = GetDocument();
@@ -274,7 +298,15 @@ void CLianXi2View::FindSelect(CPoint point) {
 			if (pt&&CheckSelect(*pt, point.x, point.y)) break;
 		}
 		if (type == 4) {
-			auto pt = dynamic_cast<MyPolygon *>(*st);
+			auto pt=dynamic_cast<MyPolygon *>(*st);
+			if (pt&&CheckSelect(*pt, point.x, point.y)) break;
+		}
+		if (type == 5) {
+			auto pt = dynamic_cast<MyPoint *>(*st);
+			if (pt&&CheckSelect(*pt, point.x, point.y)) break;
+		}
+		if (type == 6) {
+			auto pt=dynamic_cast<MyBesizer *>(*st);
 			if (pt&&CheckSelect(*pt, point.x, point.y)) break;
 		}
 		type = 0;
@@ -388,7 +420,7 @@ void CLianXi2View::DefaultDrawLine(int x0, int y0, int x1, int y1, int width, CO
 }
 
 //DDA画线
-void CLianXi2View::drawline(int x0, int y0, int x1, int y1, int width, COLORREF color)
+void CLianXi2View::DDADrawline(int x0, int y0, int x1, int y1, int width, COLORREF color)
 {
 	double dx, dy, n, k;
 	dx = x1 - x0;
@@ -781,6 +813,30 @@ void CLianXi2View::Pan(int tx, int ty) {
 			pt->setPoints(points);
 			pt->draw();
 		}
+		if (MyType == 5) {
+			MyPoint *pt = dynamic_cast<MyPoint *>(Mypt);
+			CPoint center = pt->getCenter();
+			center.x += tx;
+			center.y += ty;
+			pt->setColor(RGB(255, 255, 255));
+			pt->draw();
+			pt->setCenter(center);
+			pt->setColor(RGB(255, 0, 0));
+			pt->draw();
+		}
+		if (MyType == 6) {
+			MyBesizer *pt = dynamic_cast<MyBesizer *>(Mypt);
+			vector<CPoint> points = pt->getPoints();
+			for (int i = 0; i < points.size(); i++) {
+				points[i].x += tx;
+				points[i].y += ty;
+			}
+			pt->setColor(RGB(255, 255, 255));
+			pt->draw();
+			pt->setColor(RGB(255, 0, 0));
+			pt->setPoints(points);
+			pt->draw();
+		}
 		Invalidate(0);
 	}
 }
@@ -800,7 +856,7 @@ void CLianXi2View::Rotate(double thrta, int cx, int cy) {
 			pt->setColor(RGB(255, 0, 0));
 			pt->draw();
 		}
-		if (MyType == 2) {
+		if (MyType == 2 || MyType == 5) {
 			;
 		}
 		if (MyType == 3) {
@@ -813,6 +869,18 @@ void CLianXi2View::Rotate(double thrta, int cx, int cy) {
 		}
 		if (MyType == 4) {
 			MyPolygon *pt = dynamic_cast<MyPolygon *>(Mypt);
+			vector<CPoint> points = pt->getPoints();
+			for (int i = 0; i < points.size(); i++) {
+				points[i] = GetRotatePoint(points[i], thrta, cx, cy);
+			}
+			pt->setColor(RGB(255, 255, 255));
+			pt->draw();
+			pt->setColor(RGB(255, 0, 0));
+			pt->setPoints(points);
+			pt->draw();
+		}
+		if (MyType == 6) {
+			MyBesizer *pt = dynamic_cast<MyBesizer *>(Mypt);
 			vector<CPoint> points = pt->getPoints();
 			for (int i = 0; i < points.size(); i++) {
 				points[i] = GetRotatePoint(points[i], thrta, cx, cy);
@@ -861,8 +929,29 @@ void CLianXi2View::Scale(int cx, int cy, double times) {
 			pt->setColor(RGB(255, 0, 0));
 			pt->draw();
 		}
+		if (MyType == 5) {
+			MyPoint *pt = dynamic_cast<MyPoint *>(Mypt);
+			pt->setColor(RGB(255, 255, 255));
+			pt->draw();
+			pt->setR(pt->getR()*times);
+			pt->setColor(RGB(255, 0, 0));
+			pt->draw();
+		}
 		if (MyType == 4) {
 			MyPolygon *pt = dynamic_cast<MyPolygon *>(Mypt);
+			vector<CPoint> points = pt->getPoints();
+			for (int i = 0; i < points.size(); i++) {
+				points[i].x = cx + (points[i].x - cx)*times;
+				points[i].y = cy + (points[i].y - cy)*times;
+			}
+			pt->setColor(RGB(255, 255, 255));
+			pt->draw();
+			pt->setPoints(points);
+			pt->setColor(RGB(255, 0, 0));
+			pt->draw();
+		}
+		if (MyType == 6) {
+			MyBesizer *pt = dynamic_cast<MyBesizer *>(Mypt);
 			vector<CPoint> points = pt->getPoints();
 			for (int i = 0; i < points.size(); i++) {
 				points[i].x = cx + (points[i].x - cx)*times;
@@ -893,7 +982,7 @@ void CLianXi2View::DuiChen(int cx, int cy) {
 			pt->setColor(RGB(255, 0, 0));
 			pt->draw();
 		}
-		if (MyType == 2) {
+		if (MyType == 2 || MyType == 5) {
 			;
 		}
 		if (MyType == 3) {
@@ -928,18 +1017,32 @@ void CLianXi2View::DuiChen(int cx, int cy) {
 			pt->setColor(RGB(255, 0, 0));
 			pt->draw();
 		}
+		if (MyType == 6) {
+			MyBesizer *pt = dynamic_cast<MyBesizer *>(Mypt);
+			vector<CPoint> points = pt->getPoints();
+			for (int i = 0; i < points.size(); i++) {
+				points[i].x = 2 * cx - points[i].x;
+			}
+			pt->setColor(RGB(255, 255, 255));
+			pt->draw();
+			pt->setPoints(points);
+			pt->setColor(RGB(255, 0, 0));
+			pt->draw();
+		}
 		Invalidate(0);
 	}
 }
 
 //画贝塞尔曲线
-void CLianXi2View::DrawBezier() {
+void CLianXi2View::DrawBezier(vector<CPoint>BPoints, COLORREF color, int width) {
 	CClientDC pDC(this);
+	CPen pen(PS_SOLID, width, color);
+	CPen* pOldPen = pDC.SelectObject(&pen);
+
 	int n = BPoints.size() - 1;//n阶贝塞尔
 	pDC.MoveTo(BPoints[0].x, BPoints[0].y);
 	for (int i = 1; i <= n; i++) {
 		pDC.LineTo(BPoints[i].x, BPoints[i].y);
-		TRACE("%d %d\n", BPoints[i].x, BPoints[i].y);
 	}
 	pDC.MoveTo(BPoints[0].x, BPoints[0].y);
 	for (double t = 0; t <= 1; t += 0.001) {
@@ -952,6 +1055,8 @@ void CLianXi2View::DrawBezier() {
 		}
 		pDC.LineTo(rx, ry);
 	}
+	pDC.SelectObject(pOldPen);
+	pen.DeleteObject();
 }
 
 //显示图片
@@ -1283,7 +1388,11 @@ void CLianXi2View::OnLButtonDown(UINT nFlags, CPoint point)
 	else if (Mflag == 23) {
 		InverLine(CPoint(MLst0.x, MLst0.y), CPoint(MLst1.x, MLst1.y));
 		DefaultDrawLine(MLst0.x, MLst0.y, MLst1.x, MLst1.y, 1, RGB(0,0,0));
+		if(BPoints.size()>1)
+			DrawBezier(BPoints, RGB(255, 255, 255), Mwidth);
 		BPoints.push_back(MLst1);
+		DrawBezier(BPoints, Mcolor, Mwidth);
+		Invalidate(0);
 	}
 	ReleaseDC(pDC);
 	MLst0 = MLst1 = point;
@@ -1392,6 +1501,7 @@ void CLianXi2View::OnLButtonUp(UINT nFlags, CPoint point)
 void CLianXi2View::OnRButtonDown(UINT nFlags, CPoint point)
 {
 	// TODO: 在此添加消息处理程序代码和/或调用默认值
+	CLianXi2Doc* pDoc = GetDocument();
 	/*
 	CLianXi2Doc* pDoc = GetDocument();
 	*/
@@ -1400,7 +1510,13 @@ void CLianXi2View::OnRButtonDown(UINT nFlags, CPoint point)
 	}
 	if (Mflag == 23) {
 		Mflag = 22;
-		DrawBezier();
+		if (BPoints.size() > 1) {
+			InverLine(MLst0, MLst1);
+			DrawBezier(BPoints, RGB(255, 255, 255), Mwidth);
+			MyGraph *pt = new MyBesizer(BPoints, Mcolor, Mwidth);
+			pt->draw();
+			pDoc->graphs.push_back(pt);
+		}
 		BPoints.clear();
 	}
 	CView::OnRButtonDown(nFlags, point);

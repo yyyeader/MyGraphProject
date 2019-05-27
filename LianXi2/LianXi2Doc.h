@@ -160,6 +160,20 @@ public:
 		virtual void draw();
 	};
 
+	class MyBesizer :public MyGraph{
+	private:
+		std::vector<CPoint>points;
+	public:
+		MyBesizer(std::vector<CPoint>_points, COLORREF _color = RGB(255, 255, 255), int _width = 2, int _method = 0)
+			:MyGraph(_color, _width, _method) {
+			points = _points;
+			type = 6;
+		}
+		void setPoints(std::vector<CPoint>_points) { points = _points; }
+		std::vector<CPoint> getPoints() { return points; }
+		virtual void draw();
+	};
+
 	//用于存储当前所有对象指针
 	std::list<MyGraph* >graphs;
 

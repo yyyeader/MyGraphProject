@@ -165,7 +165,7 @@ void CLianXi2Doc::MyLine::draw() {
 	}
 	if (method == 1) {
 		//TRACE("%d %d %d %d %d %d\n",sp.x,sp.y,ep.x,ep.y,width,color);
-		fa->drawline(sp.x,sp.y,ep.x,ep.y,width,color);
+		fa->DDADrawline(sp.x,sp.y,ep.x,ep.y,width,color);
 	}
 	if (method == 2) {
 		fa->MidDrawline(sp.x, sp.y, ep.x, ep.y, width, color);
@@ -213,4 +213,12 @@ void CLianXi2Doc::MyPolygon::draw() {
 	CMainFrame* pFrame = (CMainFrame*)AfxGetMainWnd();
 	CLianXi2View *fa = (CLianXi2View*)pFrame->GetActiveView();
 	fa->Drawpolygon(points, width, color);
+}
+
+
+//画贝塞尔曲线
+void CLianXi2Doc::MyBesizer::draw() {
+	CMainFrame* pFrame = (CMainFrame*)AfxGetMainWnd();
+	CLianXi2View *fa = (CLianXi2View*)pFrame->GetActiveView();
+	fa->DrawBezier(points,color,width);
 }

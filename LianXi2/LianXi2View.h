@@ -11,6 +11,7 @@ typedef CLianXi2Doc::MyLine MyLine;
 typedef CLianXi2Doc::MyCircle MyCircle;
 typedef CLianXi2Doc::MyEllipse MyEllipse;
 typedef CLianXi2Doc::MyPolygon MyPolygon;
+typedef CLianXi2Doc::MyBesizer MyBesizer;
 typedef CPoint Vector;
 
 class CLianXi2View : public CView
@@ -47,7 +48,7 @@ public:
 
 	void DefaultDrawLine(int x0, int y0, int x1, int y1, int width, COLORREF color);
 
-	void drawline(int x0, int y0, int x1, int y1, int width, COLORREF color);
+	void DDADrawline(int x0, int y0, int x1, int y1, int width, COLORREF color);
 
 	void MidDrawline(int x0, int y0, int x1, int y1, int width, COLORREF color);
 
@@ -93,7 +94,7 @@ public:
 
 	void DuiChen(int cx, int cy);
 
-	void DrawBezier();
+	void DrawBezier(std::vector<CPoint> BPoints, COLORREF color, int width);
 
 // 操作
 public:
