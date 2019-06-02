@@ -58,6 +58,7 @@ BEGIN_MESSAGE_MAP(CLianXi2View, CView)
 	ON_COMMAND(Select, &CLianXi2View::OnSelect)
 	ON_COMMAND(SetWidthAndColor, &CLianXi2View::OnSetwidthandcolor)
 	ON_COMMAND(Bezier, &CLianXi2View::OnBezier)
+	ON_COMMAND(ShowOrHide, &CLianXi2View::OnShoworhide)
 END_MESSAGE_MAP()
 
 // CLianXi2View 构造/析构
@@ -85,6 +86,7 @@ COLORREF Mcolor;			//颜色
 MyGraph *Mypt = nullptr;	//鼠标选中图形对象指针
 COLORREF oldColor;			//鼠标选中图形对象的颜色
 int MyType = 0;				//鼠标选中图形对象的类型
+bool showPoint = true;      //绘制贝塞尔曲线时是否显示控制点
 CPoint MLst0, MLst1,MPst;
 vector<CPoint>MPoints;		//记录画多边形时选中的顶点
 vector<CPoint>BPoints;		//贝塞尔曲线控制顶点
@@ -367,8 +369,38 @@ CPoint GetCPos() {
 			cx /= points.size();
 			cy /= points.size();
 		}
+		if (MyType == 5) {
+			MyPoint *pt = dynamic_cast<MyPoint *>(Mypt);
+			cx = pt->getCenter().x;
+			cy = pt->getCenter().y;
+		}
+		if (MyType == 6) {
+			MyBesizer *pt = dynamic_cast<MyBesizer *>(Mypt);
+			vector<CPoint> points = pt->getPoints();
+			for (int i = 0; i < points.size(); i++) {
+				cx += points[i].x;
+				cy += points[i].y;
+			}
+			cx /= points.size();
+			cy /= points.size();
+		}
 	}
 	return CPoint(cx, cy);
+}
+
+//用矩阵运算获取平移后的点
+CPoint CLianXi2View::GetPanPointByMatrix(CPoint point,int dx,int dy) {
+	Matrix m1(3), m2(3, 1);
+	m1.set(0, 0, 1);
+	m1.set(0, 2, dx);
+	m1.set(1, 1, 1);
+	m1.set(1, 2, dy);
+	m1.set(2, 2, 1);
+	m2.set(0, 0, point.x);
+	m2.set(1, 0, point.y);
+	m2.set(2, 0, 1);
+	m2 = m1 * m2;
+	return CPoint(m2.get(0,0),m2.get(1,0));
 }
 
 //获取旋转后的点
@@ -378,6 +410,45 @@ CPoint CLianXi2View::GetRotatePoint(CPoint point, double thrta, int x, int y) {
 	t.x = x + (t1.x - x)*cos(thrta) - (t1.y - y)*sin(thrta);
 	t.y = y + (t1.x - x)*sin(thrta) + (t1.y - y)*cos(thrta);
 	return t;
+}
+
+//用矩阵运算获取旋转后的点
+CPoint CLianXi2View::GetRotatePointByMatrix(CPoint point,double thrta,int x,int y) {
+	Matrix m1(2),m2(2,1);
+	thrta = pi / 180.0*thrta;
+	m1.set(0, 0, cos(thrta));
+	m1.set(0, 1, -sin(thrta));
+	m1.set(1, 0, sin(thrta));
+	m1.set(1, 1, cos(thrta));
+	m2.set(0, 0, point.x - x);
+	m2.set(1, 0, point.y - y);
+	m2 = m1 * m2;
+	return CPoint(x + m2.get(0, 0), y + m2.get(1, 0));
+}
+
+//用矩阵运算获取缩放后的点
+CPoint CLianXi2View::GetScalePointByMatrix(CPoint point, double times, int x, int y) {
+	Matrix m1(2),m2(2,1);
+	m1.set(0,0,times);
+	m1.set(1,1,times);
+	m2.set(0, 0, point.x-x);
+	m2.set(0, 1, point.y-y);
+	m2 = m1*m2;
+	return CPoint(x + m2.get(0, 0), y + m2.get(1, 0));
+}
+
+
+//用矩阵运算获取对称后的点
+CPoint CLianXi2View::GetSymmetryPointByMatrix(CPoint point, int x) {
+	Matrix m1(3),m2(3,1);
+	m1.set(0, 0, -1);
+	m1.set(1, 1, 1);
+	m1.set(2, 2, 1);
+	m2.set(0,0,point.x);
+	m2.set(1,0,point.y);
+	m2.set(2, 0, 1);
+	m2 = m1 * m2;
+	return CPoint(m2.get(0,0)+2*x,m2.get(1,0));
 }
 
 //计算旋转角度（求两向量夹角）
@@ -767,10 +838,8 @@ void CLianXi2View::Pan(int tx, int ty) {
 		if (MyType == 1) {
 			MyLine *pt = dynamic_cast<MyLine *>(Mypt);
 			CPoint sp = pt->getSp(), ep = pt->getEp();
-			sp.x = sp.x + tx;
-			sp.y = sp.y + ty;
-			ep.x = ep.x + tx;
-			ep.y = ep.y + ty;
+			sp = GetPanPointByMatrix(sp, tx, ty);
+			ep = GetPanPointByMatrix(ep, tx, ty);
 			pt->setColor(RGB(255, 255, 255));
 			pt->draw();
 			pt->setSp(sp);
@@ -781,8 +850,7 @@ void CLianXi2View::Pan(int tx, int ty) {
 		if (MyType == 2) {
 			MyCircle *pt = dynamic_cast<MyCircle *>(Mypt);
 			CPoint center = pt->getCenter();
-			center.x += tx;
-			center.y += ty;
+			center=GetPanPointByMatrix(center, tx, ty);
 			pt->setColor(RGB(255, 255, 255));
 			pt->draw();
 			pt->setCenter(center);
@@ -792,8 +860,7 @@ void CLianXi2View::Pan(int tx, int ty) {
 		if (MyType == 3) {
 			MyEllipse *pt = dynamic_cast<MyEllipse *>(Mypt);
 			CPoint center = pt->getCenter();
-			center.x += tx;
-			center.y += ty;
+			center = GetPanPointByMatrix(center, tx, ty);
 			pt->setColor(RGB(255, 255, 255));
 			pt->draw();
 			pt->setCenter(center);
@@ -804,8 +871,7 @@ void CLianXi2View::Pan(int tx, int ty) {
 			MyPolygon *pt = dynamic_cast<MyPolygon *>(Mypt);
 			vector<CPoint> points = pt->getPoints();
 			for (int i = 0; i < points.size(); i++) {
-				points[i].x += tx;
-				points[i].y += ty;
+				points[i] = GetPanPointByMatrix(points[i], tx, ty);
 			}
 			pt->setColor(RGB(255, 255, 255));
 			pt->draw();
@@ -816,8 +882,7 @@ void CLianXi2View::Pan(int tx, int ty) {
 		if (MyType == 5) {
 			MyPoint *pt = dynamic_cast<MyPoint *>(Mypt);
 			CPoint center = pt->getCenter();
-			center.x += tx;
-			center.y += ty;
+			center = GetPanPointByMatrix(center, tx, ty);
 			pt->setColor(RGB(255, 255, 255));
 			pt->draw();
 			pt->setCenter(center);
@@ -828,8 +893,7 @@ void CLianXi2View::Pan(int tx, int ty) {
 			MyBesizer *pt = dynamic_cast<MyBesizer *>(Mypt);
 			vector<CPoint> points = pt->getPoints();
 			for (int i = 0; i < points.size(); i++) {
-				points[i].x += tx;
-				points[i].y += ty;
+				points[i] = GetPanPointByMatrix(points[i], tx, ty);
 			}
 			pt->setColor(RGB(255, 255, 255));
 			pt->draw();
@@ -871,7 +935,7 @@ void CLianXi2View::Rotate(double thrta, int cx, int cy) {
 			MyPolygon *pt = dynamic_cast<MyPolygon *>(Mypt);
 			vector<CPoint> points = pt->getPoints();
 			for (int i = 0; i < points.size(); i++) {
-				points[i] = GetRotatePoint(points[i], thrta, cx, cy);
+				points[i] = GetRotatePointByMatrix(points[i], thrta, cx, cy);
 			}
 			pt->setColor(RGB(255, 255, 255));
 			pt->draw();
@@ -883,7 +947,7 @@ void CLianXi2View::Rotate(double thrta, int cx, int cy) {
 			MyBesizer *pt = dynamic_cast<MyBesizer *>(Mypt);
 			vector<CPoint> points = pt->getPoints();
 			for (int i = 0; i < points.size(); i++) {
-				points[i] = GetRotatePoint(points[i], thrta, cx, cy);
+				points[i] = GetRotatePointByMatrix(points[i], thrta, cx, cy);
 			}
 			pt->setColor(RGB(255, 255, 255));
 			pt->draw();
@@ -901,10 +965,8 @@ void CLianXi2View::Scale(int cx, int cy, double times) {
 		if (MyType == 1) {
 			MyLine *pt = dynamic_cast<MyLine *>(Mypt);
 			CPoint sp = pt->getSp(), ep = pt->getEp();
-			sp.x = cx + (sp.x - cx)*times;
-			sp.y = cy + (sp.y - cy)*times;
-			ep.x = cx + (ep.x - cx)*times;
-			ep.y = cy + (ep.y - cy)*times;
+			sp = GetScalePointByMatrix(sp, times, cx, cy);
+			ep = GetScalePointByMatrix(ep, times, cx, cy);
 			pt->setColor(RGB(255, 255, 255));
 			pt->draw();
 			pt->setSp(sp);
@@ -941,8 +1003,7 @@ void CLianXi2View::Scale(int cx, int cy, double times) {
 			MyPolygon *pt = dynamic_cast<MyPolygon *>(Mypt);
 			vector<CPoint> points = pt->getPoints();
 			for (int i = 0; i < points.size(); i++) {
-				points[i].x = cx + (points[i].x - cx)*times;
-				points[i].y = cy + (points[i].y - cy)*times;
+				points[i] = GetScalePointByMatrix(points[i], times, cx, cy);
 			}
 			pt->setColor(RGB(255, 255, 255));
 			pt->draw();
@@ -954,8 +1015,7 @@ void CLianXi2View::Scale(int cx, int cy, double times) {
 			MyBesizer *pt = dynamic_cast<MyBesizer *>(Mypt);
 			vector<CPoint> points = pt->getPoints();
 			for (int i = 0; i < points.size(); i++) {
-				points[i].x = cx + (points[i].x - cx)*times;
-				points[i].y = cy + (points[i].y - cy)*times;
+				points[i] = GetScalePointByMatrix(points[i], times, cx, cy);
 			}
 			pt->setColor(RGB(255, 255, 255));
 			pt->draw();
@@ -967,14 +1027,14 @@ void CLianXi2View::Scale(int cx, int cy, double times) {
 	}
 }
 
-//对称对换
+//对称变换
 void CLianXi2View::DuiChen(int cx, int cy) {
 	if (Mypt) {
 		if (MyType == 1) {
 			MyLine *pt = dynamic_cast<MyLine *>(Mypt);
 			CPoint sp = pt->getSp(), ep = pt->getEp();
-			sp.x = 2 * cx - sp.x;
-			ep.x = 2 * cx - ep.x;
+			sp = GetSymmetryPointByMatrix(sp, cx);
+			ep = GetSymmetryPointByMatrix(ep, cx);
 			pt->setColor(RGB(255, 255, 255));
 			pt->draw();
 			pt->setSp(sp);
@@ -1009,7 +1069,7 @@ void CLianXi2View::DuiChen(int cx, int cy) {
 			MyPolygon *pt = dynamic_cast<MyPolygon *>(Mypt);
 			vector<CPoint> points = pt->getPoints();
 			for (int i = 0; i < points.size(); i++) {
-				points[i].x = 2 * cx - points[i].x;
+				points[i] = GetSymmetryPointByMatrix(points[i], cx);
 			}
 			pt->setColor(RGB(255, 255, 255));
 			pt->draw();
@@ -1021,7 +1081,7 @@ void CLianXi2View::DuiChen(int cx, int cy) {
 			MyBesizer *pt = dynamic_cast<MyBesizer *>(Mypt);
 			vector<CPoint> points = pt->getPoints();
 			for (int i = 0; i < points.size(); i++) {
-				points[i].x = 2 * cx - points[i].x;
+				points[i] = GetSymmetryPointByMatrix(points[i], cx);
 			}
 			pt->setColor(RGB(255, 255, 255));
 			pt->draw();
@@ -1034,15 +1094,17 @@ void CLianXi2View::DuiChen(int cx, int cy) {
 }
 
 //画贝塞尔曲线
-void CLianXi2View::DrawBezier(vector<CPoint>BPoints, COLORREF color, int width) {
+void CLianXi2View::DrawBezier(vector<CPoint>BPoints, bool showPoint, COLORREF color, int width) {
 	CClientDC pDC(this);
 	CPen pen(PS_SOLID, width, color);
 	CPen* pOldPen = pDC.SelectObject(&pen);
 
 	int n = BPoints.size() - 1;//n阶贝塞尔
-	pDC.MoveTo(BPoints[0].x, BPoints[0].y);
-	for (int i = 1; i <= n; i++) {
-		pDC.LineTo(BPoints[i].x, BPoints[i].y);
+	if (showPoint) {
+		pDC.MoveTo(BPoints[0].x, BPoints[0].y);
+		for (int i = 1; i <= n; i++) {
+			pDC.LineTo(BPoints[i].x, BPoints[i].y);
+		}
 	}
 	pDC.MoveTo(BPoints[0].x, BPoints[0].y);
 	for (double t = 0; t <= 1; t += 0.001) {
@@ -1311,6 +1373,23 @@ void CLianXi2View::OnBezier()
 	Mflag = 22;
 }
 
+void CLianXi2View::OnShoworhide()
+{
+	// TODO: 在此添加命令处理程序代码
+	showPoint = !showPoint;
+	CLianXi2Doc* pDoc = GetDocument();
+	auto st = pDoc->graphs.begin();
+	auto en = pDoc->graphs.end();
+	while (st != en) {
+		if ((*st)->getType() == 6) {
+			MyBesizer *pt = dynamic_cast<MyBesizer *>(*st);
+			pt->setShowPoint(showPoint);
+		}
+		st++;
+	}
+	Invalidate(1);
+}
+
 //以下为鼠标信息处理事件
 void CLianXi2View::OnLButtonDown(UINT nFlags, CPoint point)
 {
@@ -1387,11 +1466,10 @@ void CLianXi2View::OnLButtonDown(UINT nFlags, CPoint point)
 	}
 	else if (Mflag == 23) {
 		InverLine(CPoint(MLst0.x, MLst0.y), CPoint(MLst1.x, MLst1.y));
-		DefaultDrawLine(MLst0.x, MLst0.y, MLst1.x, MLst1.y, 1, RGB(0,0,0));
-		if(BPoints.size()>1)
-			DrawBezier(BPoints, RGB(255, 255, 255), Mwidth);
+		if (BPoints.size() > 1)
+			DrawBezier(BPoints, showPoint, RGB(255, 255, 255), Mwidth);
 		BPoints.push_back(MLst1);
-		DrawBezier(BPoints, Mcolor, Mwidth);
+		DrawBezier(BPoints, showPoint, Mcolor, Mwidth);
 		Invalidate(0);
 	}
 	ReleaseDC(pDC);
@@ -1512,8 +1590,8 @@ void CLianXi2View::OnRButtonDown(UINT nFlags, CPoint point)
 		Mflag = 22;
 		if (BPoints.size() > 1) {
 			InverLine(MLst0, MLst1);
-			DrawBezier(BPoints, RGB(255, 255, 255), Mwidth);
-			MyGraph *pt = new MyBesizer(BPoints, Mcolor, Mwidth);
+			DrawBezier(BPoints, showPoint, RGB(255, 255, 255), Mwidth);
+			MyGraph *pt = new MyBesizer(BPoints, showPoint, Mcolor, Mwidth);
 			pt->draw();
 			pDoc->graphs.push_back(pt);
 		}

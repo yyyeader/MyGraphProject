@@ -12,6 +12,7 @@ typedef CLianXi2Doc::MyCircle MyCircle;
 typedef CLianXi2Doc::MyEllipse MyEllipse;
 typedef CLianXi2Doc::MyPolygon MyPolygon;
 typedef CLianXi2Doc::MyBesizer MyBesizer;
+typedef CLianXi2Doc::Matrix Matrix;
 typedef CPoint Vector;
 
 class CLianXi2View : public CView
@@ -82,9 +83,17 @@ public:
 
 	std::pair<int, int> InverEllipse(CPoint pFrom, CPoint pTo);
 
+	CPoint GetSymmetryPointByMatrix(CPoint point, int x);
+
 	double Calthrta(CPoint p1, CPoint p2, CPoint p3);
 
+	CPoint GetPanPointByMatrix(CPoint point, int dx, int dy);
+
 	CPoint GetRotatePoint(CPoint point, double thrta, int x, int y);
+
+	CPoint GetRotatePointByMatrix(CPoint, double thrta, int x, int y);
+
+	CPoint GetScalePointByMatrix(CPoint point, double times, int x, int y);
 
 	void Pan(int tx, int ty);
 
@@ -94,7 +103,8 @@ public:
 
 	void DuiChen(int cx, int cy);
 
-	void DrawBezier(std::vector<CPoint> BPoints, COLORREF color, int width);
+	void DrawBezier(std::vector<CPoint> BPoints, bool showPoint, COLORREF color, int width);
+
 
 // 操作
 public:
@@ -149,6 +159,7 @@ public:
 	afx_msg void OnSelect();
 	afx_msg void OnSetwidthandcolor();
 	afx_msg void OnBezier();
+	afx_msg void OnShoworhide();
 };
 
 #ifndef _DEBUG  // LianXi2View.cpp 中的调试版本
